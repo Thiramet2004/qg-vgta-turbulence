@@ -1,0 +1,7 @@
+zonal      dx= 2.00 km  segments L/T: 5485/5485  fit 0.0625–0.1250 cpkm
+           slope E_L -4.40   E_T -4.65   E_T/E_L 0.90   (rotational: E_T/E_L = |slope|; −5/3 → 1.67, −3 → 3)
+meridional dx= 2.00 km  segments L/T: 5559/5559  fit 0.0625–0.1250 cpkm
+           slope E_L -3.85   E_T -4.17   E_T/E_L 1.95   (rotational: E_T/E_L = |slope|; −5/3 → 1.67, −3 → 3)
+zonal      structure fns r=8–40 km (5,697+ pairs/lag): D_LL ∝ r^1.15 (→ k^-2.15)  D_TT ∝ r^0.11 (→ k^-1.11)  D_TT/D_LL 0.56 (rotational: 1+γ)
+meridional structure fns r=8–40 km (6,082+ pairs/lag): D_LL ∝ r^0.94 (→ k^-1.94)  D_TT ∝ r^0.45 (→ k^-1.45)  D_TT/D_LL 1.01 (rotational: 1+γ)
+wrote analysis/hfr_202605_spectra.png

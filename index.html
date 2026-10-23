@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tidally Forced QG Turbulence</title>
+  <meta name="description" content="An Interactive WebGL Framework for Real-Time Simulation of Tidally Forced Global Quasi-Geostrophic Turbulence.">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="map"></div>
+
+  <div id="timebar" class="card">
+    <div class="t-row">
+      <button id="t-play" type="button" title="Pause (Space)">❚❚</button>
+      <div class="t-fields">
+        <label class="t-picker" title="Pick a UTC date and time">
+          <span id="t-display" class="t-display" aria-hidden="true">—</span>
+          <svg class="t-cal" viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="3" width="13" height="11.5" rx="2" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M1.5 6.5h13M5 1.5v3M11 1.5v3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+          <!-- Native picker, transparent over the display: a click anywhere opens the calendar. -->
+          <input id="t-datetime" type="datetime-local" step="60" min="1800-01-01T00:00" max="2050-12-31T23:59"
+                 aria-label="Model date and time (UTC)">
+        </label>
+        <span id="t-sec" class="t-sec">:00</span>
+        <span class="t-utc">UTC</span>
+      </div>
+      <button id="t-now" type="button" title="Jump to the current UTC time">Now</button>
+    </div>
+    <div class="t-meta">JD <span id="t-jd">—</span> <span class="t-dot">·</span> <span id="clock-rate">—</span></div>
+  </div>
+
+  <aside id="hud" class="card">
+    <h1>Tidally Forced <span>QG Turbulence</span></h1>
+    <p class="sub">Interactive WebGL framework · real-time global simulation</p>
+    <div class="moon-card">
+      <canvas id="moon-canvas" width="64" height="64" aria-label="Moon phase"></canvas>
+      <dl>
+        <dt>Phase</dt><dd id="m-phase">—</dd>
+        <dt>Illumination</dt><dd id="m-illum">—</dd>
+        <dt>Age</dt><dd id="m-age">—</dd>
+        <dt>Distance</dt><dd id="m-dist">—</dd>
+      </dl>
+    </div>
+    <dl class="readout">
+      <dt>Elapsed</dt><dd id="r-elapsed">—</dd>
+      <dt>Measured</dt><dd id="r-rate">—</dd>
+      <dt>Tide</dt><dd><span id="r-spring">—</span> <span class="bar"><i id="r-spring-bar"></i></span></dd>
+      <dt>Sub-lunar</dt><dd id="r-sublunar">—</dd>
+      <dt>Sub-solar</dt><dd id="r-subsolar">—</dd>
+      <dt>VGTA</dt><dd id="r-vgta">—</dd>
+      <dt>U<sub>rms</sub></dt><dd id="r-urms">—</dd>
+      <dt>λ<sub>E</sub></dt><dd id="r-lambda">—</dd>
+    </dl>
+    <canvas id="spark" width="260" height="52"></canvas>
+    <div class="spark-key"><span class="k-lam">λ<sub>E</sub> energy scale</span><span class="k-ke">kinetic energy</span></div>
+    <div id="status" role="status"></div>
+  </aside>
+
+  <aside id="panel" class="card">
+    <button id="panel-toggle" type="button">Controls</button>
+    <div id="panel-body">
+      <h2>Time</h2>
+      <div class="ctl"><label for="s-speed">Simulation speed <output id="s-speed-val"></output></label>
+        <input type="range" id="s-speed" min="-2" max="0.699" step="0.001" value="-1"></div>
+      <div class="presets">
+        <button type="button" data-speed="0.01">0.01×</button>
+        <button type="button" data-speed="0.05">0.05×</button>
+        <button type="button" data-speed="0.1">0.1×</button>
+        <button type="button" data-speed="0.5">0.5×</button>
+        <button type="button" data-speed="1">1×</button>
+        <button type="button" data-speed="5">5×</button>
+      </div>
+      <div class="ctl"><label for="s-sor">SOR sweeps / step <output id="s-sor-val"></output></label>
+        <input type="range" id="s-sor" min="2" max="30" step="1" value="8"></div>
+
+      <h2>Display</h2>
+      <div class="ctl">
+        <label for="field">Field</label>
+        <select id="field">
+          <option value="0">Relative vorticity ζ</option>
+          <option value="1">Streamfunction ψ</option>
+          <option value="2">Current speed</option>
+          <option value="3">Potential vorticity q</option>
+          <option value="4">VGTA a_z</option>
+          <option value="5">Rossby radius L_d</option>
+        </select>
+      </div>
+      <div class="ctl"><label for="s-color">Colour range <output id="s-color-val"></output></label>
+        <input type="range" id="s-color" min="-1" max="1" step="0.01" value="0"></div>
+      <div class="checks">
+        <label><input type="checkbox" id="c-contours" checked> VGTA contours</label>
+        <label><input type="checkbox" id="c-night" checked> Day / night</label>
+      </div>
+
+      <h2>Sky overlays <span class="note">display only</span></h2>
+      <div class="checks">
+        <label><input type="checkbox" id="c-markers" checked> Sun / Moon</label>
+        <label><input type="checkbox" id="c-planets" checked> Planets</label>
+        <label><input type="checkbox" id="c-ecliptic" checked> Ecliptic</label>
+      </div>
+      <ul id="planet-list" class="planet-list"></ul>
+
+      <div id="hfr-section" hidden>
+        <h2>HF radar <span class="note">observations</span></h2>
+        <div class="ctl">
+          <label for="hfr-source">Source</label>
+          <select id="hfr-source">
+            <option value="bundles">GISTDA, Gulf of Thailand (bundled)</option>
+            <option value="ccal">NOAA NCEI live · Central California 6 km</option>
+            <option value="mbay">NOAA NCEI live · Monterey Bay 2 km</option>
+            <option value="sfb">NOAA NCEI live · San Francisco Bay 1 km</option>
+          </select>
+        </div>
+        <div class="checks">
+          <label><input type="checkbox" id="c-hfr" checked> Show observed currents</label>
+          <a href="analysis.html" target="_blank" class="link">Spectral analysis ↗</a>
+        </div>
+        <div class="ctl"><label for="s-glyph">Arrow spacing <output id="s-glyph-val"></output></label>
+          <input type="range" id="s-glyph" min="14" max="60" step="1" value="26"></div>
+        <div class="ctl"><label for="s-arrow">Arrow length <output id="s-arrow-val"></output></label>
+          <input type="range" id="s-arrow" min="10" max="250" step="5" value="80"></div>
+        <div id="hfr-status" class="estimate"></div>
+        <button id="b-hfr-go" class="primary" type="button" hidden>Go to radar period &amp; area</button>
+      </div>
+
+      <h2>Turbulence</h2>
+      <div class="ctl"><label for="s-forcing">Eddy forcing <output id="s-forcing-val"></output></label>
+        <input type="range" id="s-forcing" min="0" max="3" step="0.05" value="0.8"></div>
+      <div class="ctl"><label for="s-kf">Forcing wavelength <output id="s-kf-val"></output></label>
+        <input type="range" id="s-kf" min="100" max="600" step="10" value="200"></div>
+      <div class="ctl"><label for="s-drag">Bottom-drag time <output id="s-drag-val"></output></label>
+        <input type="range" id="s-drag" min="5" max="365" step="5" value="45"></div>
+      <div class="ctl"><label for="s-ld">Rossby radius <output id="s-ld-val"></output></label>
+        <input type="range" id="s-ld" min="1" max="20" step="0.5" value="10"></div>
+
+      <h2>VGTA forcing</h2>
+      <div class="ctl"><label for="s-stretch">Tidal stretching gain <output id="s-stretch-val"></output></label>
+        <input type="range" id="s-stretch" min="0" max="1000" step="10" value="100"></div>
+      <div class="ctl"><label for="s-mod">Bulge eddy modulation <output id="s-mod-val"></output></label>
+        <input type="range" id="s-mod" min="0" max="10" step="0.1" value="2"></div>
+
+      <div class="buttons">
+        <button id="b-pause" type="button">Pause</button>
+        <button id="b-reset" type="button">Reset</button>
+        <button id="b-decay" type="button" title="Unforced decay from small-scale noise: watch vortices merge">Decay run</button>
+        <button id="b-now" type="button" title="Jump the model clock to the current UTC time">Now</button>
+      </div>
+    </div>
+  </aside>
+
+  <div id="legend" class="card">
+    <div id="legend-title"></div>
+    <div id="legend-bar"></div>
+    <div class="ticks"><span id="legend-min"></span><span id="legend-mid"></span><span id="legend-max"></span></div>
+  </div>
+
+  <div id="hint">Click: cyclone · Shift+click: anticyclone · Space: pause</div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/dist/topojson-client.min.js"></script>
+  <script src="celestial.js"></script>
+  <script src="shaders.js"></script>
+  <script src="main.js"></script>
+</body>
+</html>

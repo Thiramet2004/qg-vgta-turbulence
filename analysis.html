@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>HF Radar Spectral Analysis</title>
+  <meta name="description" content="Subtidal rotational and divergent kinetic-energy spectra of HF radar currents (NOAA NCEI central California, GISTDA Gulf of Thailand), following Galperin's QNSE framework.">
+  <style>
+    :root {
+      --bg: #0b0d12; --card: #12161f; --border: rgba(255, 255, 255, 0.09); --text: #e6e9ef; --muted: #8b93a3;
+      --accent: #f5a35c; --ok: #6fd3a0; --warn: #ffb36b; --bad: #ff7b7b;
+      --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    }
+    @media (prefers-color-scheme: light) {
+      :root:not([data-theme="dark"]) { --bg: #f6f7f9; --card: #fff; --border: rgba(0, 0, 0, 0.1); --text: #1b1f27; --muted: #5d6573; --accent: #c4661b; --ok: #1d8a57; --warn: #b8660d; --bad: #c2393a; }
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.55 var(--font); }
+    main { max-width: 1120px; margin: 0 auto; padding: 32px 20px 64px; }
+    header { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+    h1 { font-size: 26px; margin: 0; letter-spacing: -0.01em; }
+    h1 span { color: var(--accent); }
+    h2 { font-size: 19px; margin: 40px 0 12px; }
+    h3 { font-size: 16px; margin: 0 0 6px; }
+    a { color: var(--accent); }
+    .sub { color: var(--muted); margin: 4px 0 24px; max-width: 75ch; }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 18px 20px; margin: 14px 0; }
+    .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; }
+    .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; margin: 12px 0; }
+    .kpi { border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; }
+    .kpi b { display: block; font: 600 20px var(--mono); font-variant-numeric: tabular-nums; }
+    .kpi span { color: var(--muted); font-size: 12.5px; }
+    figure { margin: 10px 0; }
+    figure img { width: 100%; border-radius: 8px; background: #fff; display: block; }
+    figcaption { color: var(--muted); font-size: 12.5px; margin-top: 4px; }
+    table { width: 100%; border-collapse: collapse; font-size: 13.5px; margin: 8px 0; }
+    th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--border); vertical-align: top; }
+    th { color: var(--muted); font-weight: 600; font-size: 12.5px; }
+    td.num { font-family: var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .tag { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 12px; font-weight: 600; border: 1px solid currentColor; }
+    .tag.ok { color: var(--ok); } .tag.bad { color: var(--bad); } .tag.warn { color: var(--warn); }
+    .note { color: var(--muted); font-size: 13.5px; }
+    ul.tight li { margin: 4px 0; }
+    .scroll { overflow-x: auto; }
+    #missing { display: none; }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>HF Radar <span>Spectral Analysis</span></h1>
+    <a href="index.html">← back to the simulation</a>
+  </header>
+  <p class="sub">Subtidal surface-current spectra decomposed into rotational (geostrophic-like) and divergent parts,
+    for testing the slopes predicted by quasi-normal scale elimination (QNSE) and 2-D turbulence:
+    k<sup>−5/3</sup> (inverse energy cascade) versus k<sup>−3</sup> (enstrophy cascade).</p>
+
+  <div class="card" id="missing">Analysis data not found. Run <code>python tools/hfr_ncei_report.py</code> to generate
+    <code>analysis/web/analysis_data.js</code>.</div>
+
+  <section id="latitude"></section>
+  <section id="rotation"></section>
+  <section id="ncei"></section>
+  <section id="gistda"></section>
+
+  <h2>Method</h2>
+  <div class="card">
+    <ul class="tight">
+      <li><b>Totals.</b> NOAA NCEI CODAR radials are streamed from the archive (no raw files stored) and combined into
+        total vectors by unweighted least squares on a regular grid. QC: VFLG = 0, |v| ≤ 1.5 m/s, ≥ 3 radials from ≥ 2
+        sites within the search radius, crossing angle ≥ 30° (GDOP). GISTDA totals are used on their native 2 km grid.</li>
+      <li><b>Subtidal filter.</b> Lanczos low-pass, 72 h half-power, ±120 h window. It removes the tides and the
+        near-inertial band (≈ 20 h at 37°N, ≈ 53 h at 13°N).</li>
+      <li><b>Spectra.</b> 1-D longitudinal C<sub>L</sub> and transverse C<sub>T</sub> spectra along zonal and meridional
+        transects (gap-tolerant, de-meaned, Tukey-tapered segments), split into rotational D<sub>ψ</sub> and divergent
+        D<sub>φ</sub> parts after Bühler, Callies &amp; Ferrari (2014, <i>J. Fluid Mech.</i> 757).</li>
+      <li><b>Fits.</b> Power laws are fitted only above each product's smoothing scale: 2.2 × the radial search radius
+        for NCEI, 20 km for GISTDA.</li>
+      <li><b>Verdict.</b> Each network's estimator is validated on synthetic months with its real gap mask. A slope
+        is called <i>consistent</i> with a law when the bias-corrected difference is within 2σ, where σ combines the
+        fit error and the validated scatter.</li>
+      <li><b>Caveats.</b> The split assumes isotropy; a rotational share > 1 flags anisotropic flow. Footprints limit
+        the largest resolved wavelength, so these data probe scales up to about the deformation radius, not the
+        Rhines scale where QNSE's zonal anisotropy is predicted.</li>
+    </ul>
+  </div>
+</main>
+
+<script src="analysis/web/analysis_data.js"></script>
+<script>
+'use strict';
+(function () {
+  const A = window.ANALYSIS;
+  if (!A) { document.getElementById('missing').style.display = 'block'; return; }
+  const f2 = x => (x === null || x === undefined || !isFinite(x) ? '–' : (x >= 0 ? '+' : '') + x.toFixed(2));
+  const pct = x => (x === null || !isFinite(x) ? '–' : Math.round(x * 100) + '%');
+  const esc = s => String(s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+
+  // Consistency of a fitted slope with a law, using the validated bias and scatter for that law.
+  function verdict(fit, val, law) {
+    const v = val[law.toFixed(2)];
+    if (!fit || fit[0] === null || !v) return null;
+    const sigma = Math.hypot(fit[1] || 0, v.scatter);
+    return Math.abs(fit[0] - v.bias - law) / sigma;
+  }
+  const tag = z => z === null ? '<span class="tag warn">n/a</span>'
+    : z <= 2 ? `<span class="tag ok">consistent (${z.toFixed(1)}σ)</span>` : `<span class="tag bad">excluded (${z.toFixed(1)}σ)</span>`;
+
+  // ── Across latitudes (HFRNet official totals + GISTDA) ──
+  const LT = A.latitude;
+  if (LT) {
+    const fit = LT.fit.harmonic, fs = LT.fit.lanczos, rr = LT.median_ratio_to_qnse.harmonic;
+    const exclusion = c => c.ci[1] < 2 ? '<span class="tag bad">f² excluded</span>' : '<span class="tag warn">f² not excluded</span>';
+    let html = `<h2>Across latitudes: ${LT.areas.length} areas, ${Math.min(...LT.areas.map(a => a.lat)).toFixed(0)}–${Math.max(...LT.areas.map(a => a.lat)).toFixed(0)}°N</h2>
+      <div class="card">
+        <p>Official HFRNet total-vector products (6 km, UWLS, 10 km search radius; the same kind of product as CODAR <code>.tuv</code> totals),
+          January–December 2020, cut automatically into every well-observed area and pooled per site over all its months
+          (up to 12), plus the GISTDA Gulf of Thailand totals (15 months). Sites are resampled in the bootstrap, so each counts once.
+          If the radar-resolved scales were QNSE's Coriolis range, the energy at a fixed wavelength would scale as f².</p>
+        <div class="kpis">
+          <div class="kpi"><b>p = ${f2(fit.exponent)}</b><span>E(${LT.ref_km} km) ∝ f<sup>p</sup>, tides removed (95 % CI ${f2(fit.ci[0])}…${f2(fit.ci[1])}); QNSE: p = 2</span></div>
+          <div class="kpi"><b>p = ${f2(fs.exponent)}</b><span>subtidal only (95 % CI ${f2(fs.ci[0])}…${f2(fs.ci[1])})</span></div>
+          <div class="kpi"><b>${(rr.A_L * 100).toFixed(0)}% / ${(rr.A_T * 100).toFixed(0)}%</b><span>median observed Coriolis-range amplitude C<sub>L</sub> / C<sub>T</sub> relative to QNSE</span></div>
+          <div class="kpi"><b>${f2(fit.slope_psi_median)}</b><span>median rotational slope, λ ≥ ${LT.floor_km} km (subtidal ${f2(fs.slope_psi_median)})</span></div>
+        </div>
+        <h3>Robustness of the exponent</h3>
+        <div class="scroll"><table><tr><th>Areas</th><th>Band</th><th>p (95 % CI)</th><th>n</th><th>vs QNSE p = 2</th></tr>
+          ${LT.robust.map(c => `<tr><td>${esc(c.case)}</td><td>${c.kind === 'harmonic' ? 'tides removed' : 'subtidal'}</td>
+            <td class="num">${f2(c.p)} (${f2(c.ci[0])}…${f2(c.ci[1])})</td><td class="num">${c.n}</td><td>${exclusion(c)}</td></tr>`).join('')}
+        </table></div>
+        <figure><img src="${LT.figure}" alt="Coriolis-range amplitude, rotational slope and energy level versus latitude and f" loading="lazy">
+          <figcaption>Left: compensated amplitudes vs QNSE (dashed). Centre: rotational slopes. Right: energy at ${LT.ref_km} km vs f with the QNSE f² line.</figcaption></figure>
+        <h3>Areas</h3>
+        <div class="scroll"><table><tr><th>Area</th><th>Lat</th><th>Slope C<sub>L</sub> / C<sub>T</sub> / D<sub>ψ</sub></th><th>C<sub>L</sub>k³/f² ÷ QNSE</th><th>C<sub>T</sub>k³/f² ÷ QNSE</th><th>E(${LT.ref_km} km)</th><th>Subtidal D<sub>ψ</sub> slope</th></tr>
+          ${LT.areas.map(r => `<tr><td>${esc(r.label)}</td><td class="num">${r.lat.toFixed(1)}°</td>
+            <td class="num">${f2(r.harmonic_slope_L)} / ${f2(r.harmonic_slope_T)} / ${f2(r.harmonic_slope_psi)}</td>
+            <td class="num">${(r.harmonic_A_L / LT.qnse.A_L).toFixed(3)}</td><td class="num">${(r.harmonic_A_T / LT.qnse.A_T).toFixed(3)}</td>
+            <td class="num">${r.harmonic_E_ref.toPrecision(3)}</td><td class="num">${f2(r.lanczos_slope_psi)}</td></tr>`).join('')}
+        </table></div>
+        <p class="note">Amplitudes assume QNSE's k in rad/m and one-sided spectra. The 35.7°N area sits on the Gulf Stream (inhomogeneous jet).
+          With 10–12 months per site, p = 2 lies outside the 95 % interval in every robustness case; GISTDA uses a different
+          (undocumented) total-vector processing, so the HFRNet-only rows are the cleanest comparison.</p>
+      </div>`;
+    document.getElementById('latitude').innerHTML = html;
+  }
+
+  // ── Rotation test (QNSE across latitude) ──
+  const R = A.rotation;
+  if (R) {
+    const q = R.qnse, ds = R.datasets, sub = R.subtidal || [];
+    const tr = R.transition;
+    const ratio = (a, b) => (a / b).toFixed(a / b < 0.1 ? 3 : 2);
+    let html = `<h2>Rotating-turbulence test (Galperin et al., QNSE): low vs mid latitude</h2>
+      <div class="card">
+        <p>QNSE gives one-dimensional spectra <i>E</i><sub>L</sub> = (18/55)C<sub>K</sub>Π<sup>2/3</sup>k<sup>−5/3</sup> + <b>${q.A_L}</b> f²k<sup>−3</sup> and
+        <i>E</i><sub>T</sub> = (24/55)C<sub>K</sub>Π<sup>2/3</sup>k<sup>−5/3</sup> + <b>${q.A_T}</b> f²k<sup>−3</sup>
+        (<a href="https://mdc.coaps.fsu.edu/scatterometry/meeting/docs/2022/IOVWST_Presentation_Galperin.pdf">${esc(q.source)}</a>).
+        In the Coriolis range the amplitude depends on f only, so <i>E</i>k³/f² must equal ${q.A_L} (C<sub>L</sub>) and ${q.A_T} (C<sub>T</sub>)
+        at every latitude. The range gives way to k<sup>−5/3</sup> below the transition wavelength λ<sub>t</sub> ∝ f<sup>−3/2</sup>Π<sup>1/2</sup>,
+        so it disappears as f → 0.</p>
+        <div class="scroll"><table>
+          <tr><th>Dataset</th><th>Latitude</th><th>Slope C<sub>L</sub> / C<sub>T</sub></th><th>C<sub>L</sub>k³/f² (×QNSE)</th><th>C<sub>T</sub>k³/f² (×QNSE)</th>
+            <th>Energy flux Π from V(r) [10⁻⁹ m²/s³]</th></tr>
+          ${ds.map((d, i) => `<tr><td>${esc(d.label)}<br><span class="note">tides removed${sub[i] ? `; subtidal-only slope ${f2(sub[i].slope_L)} / ${f2(sub[i].slope_T)}` : ''}</span></td>
+            <td class="num">${d.lat.toFixed(1)}°N</td>
+            <td class="num">${f2(d.slope_L)} / ${f2(d.slope_T)}</td>
+            <td class="num">${d.A_L.toFixed(4)} (${ratio(d.A_L, q.A_L)})</td>
+            <td class="num">${d.A_T.toFixed(4)} (${ratio(d.A_T, q.A_T)})</td>
+            <td class="num">${f2(d.eps * 1e9)} ± ${(d.eps_null_sigma * 1e9).toFixed(2)} ${Math.abs(d.eps / d.eps_null_sigma) >= 2 ? '<span class="tag warn">≥2σ</span>' : ''}</td></tr>`).join('')}
+          <tr><td><b>QNSE Coriolis range</b></td><td>any</td><td class="num">−3 / −3</td><td class="num">${q.A_L} (1)</td><td class="num">${q.A_T} (1)</td><td></td></tr>
+        </table></div>
+        <p class="note">Spectra are averaged over months, the white-noise floor is removed, and only wavelengths above each product's smoothing scale are used.
+          Π: third-order structure function ⟨δu<sub>L</sub>(δu<sub>L</sub>²+δu<sub>T</sub>²)⟩ = 2Πr (> 0: inverse cascade); ± is the spread of the same estimator on no-flux synthetic fields.</p>
+        <h3 style="margin-top:14px">Where the Coriolis range should vanish</h3>
+        <div class="scroll"><table>
+          <tr><th>Π [m²/s³]</th>${['2', '5', '13', '20', '37'].map(l => `<th>λ<sub>t</sub> at ${l}°</th>`).join('')}<th>Coriolis range unresolved by HF radar (λ<sub>t</sub> > 20 km) for</th></tr>
+          ${Object.entries(tr).map(([flux, t]) => `<tr><td class="num">${flux}</td>${['2', '5', '13', '20', '37'].map(l => `<td class="num">${t.lambda_km[l].toFixed(1)} km</td>`).join('')}
+            <td class="num">|lat| < ${t.lat_20km.toFixed(1)}°</td></tr>`).join('')}
+        </table></div>
+        <figure><img src="${R.figure}" alt="QNSE amplitude collapse test, transition wavelength versus latitude, and third-order energy flux" loading="lazy">
+          <figcaption>Left: Ek³/f² against wavelength (QNSE: flat at 0.0926 and 0.24). Centre: QNSE transition wavelength versus latitude.
+          Right: energy flux V(r)/2r with ±2σ null-noise bands.</figcaption></figure>
+      </div>`;
+    document.getElementById('rotation').innerHTML = html;
+  }
+
+  // ── NOAA NCEI networks ──
+  const N = A.ncei || [];
+  if (N.length) {
+    let html = `<h2>NOAA NCEI CODAR radials — central California, December 2020</h2>
+      <p class="note">${N.length} networks, ${N.reduce((s, n) => s + n.hours, 0) / N.length | 0} hours each.
+      Data streamed from <a href="https://www.ncei.noaa.gov/data/oceans/ioos/hfradar/radial/2020/202012/CODAR/">NCEI</a>.</p>`;
+    for (const n of N) {
+      const z53 = verdict(n.fit.Dpsi, n.validation, -5 / 3), z3 = verdict(n.fit.Dpsi, n.validation, -3);
+      const wl = n.fit_wavelengths_km;
+      const share = n.rot_share;
+      html += `<div class="card"><h3>${esc(n.label)}</h3>
+        <p class="note">${esc(n.source)} · grid ${esc(n.grid)} · search radius ${n.search_km} km ·
+          ${n.segments.toLocaleString()} transect segments of ${n.segment_km} km</p>
+        <div class="kpis">
+          <div class="kpi"><b>${f2(n.fit.Dpsi[0])}${n.fit.Dpsi[1] ? ' ± ' + n.fit.Dpsi[1].toFixed(2) : ''}</b><span>rotational slope D<sub>ψ</sub>, λ ${wl.length ? wl[wl.length - 1] + '–' + wl[0] : '–'} km (${wl.length} bins)</span></div>
+          <div class="kpi"><b>${share > 1 ? '>1 ⚠' : pct(share)}</b><span>rotational share of subtidal KE above ${n.floor_km.toFixed(1)} km${share > 1 ? ' (anisotropic)' : ''}</span></div>
+          <div class="kpi"><b>${pct(n.subtidal_frac)}</b><span>subtidal share of total KE</span></div>
+          <div class="kpi"><b>${n.valid_hours}/${n.raw_hours}</b><span>hours after / before filtering</span></div>
+        </div>
+        <div class="scroll"><table>
+          <tr><th>Spectrum</th><th>Slope (λ ≥ ${n.floor_km.toFixed(1)} km)</th><th>vs k<sup>−5/3</sup></th><th>vs k<sup>−3</sup></th></tr>
+          ${['Dpsi', 'Dphi', 'CL', 'CT'].map(key => {
+            const lab = { Dpsi: 'D<sub>ψ</sub> rotational', Dphi: 'D<sub>φ</sub> divergent', CL: 'C<sub>L</sub> longitudinal', CT: 'C<sub>T</sub> transverse' }[key];
+            const fit = n.fit[key];
+            return `<tr><td>${lab}</td><td class="num">${f2(fit[0])}${fit[1] ? ' ± ' + fit[1].toFixed(2) : ''}</td>
+              <td>${key === 'Dpsi' ? tag(z53) : ''}</td><td>${key === 'Dpsi' ? tag(z3) : ''}</td></tr>`;
+          }).join('')}
+        </table></div>
+        <p class="note">Validation on this network's gap mask (single month): bias ${f2(n.validation['-1.67'].bias)} ± ${n.validation['-1.67'].scatter.toFixed(2)}
+          for a true k<sup>−5/3</sup>, ${f2(n.validation['-3.00'].bias)} ± ${n.validation['-3.00'].scatter.toFixed(2)} for k<sup>−3</sup>;
+          rotational-share RMS error ${n.validation.share_rms.toFixed(2)}.</p>
+        <div class="grid2">
+          <figure><img src="${n.figures.spectra}" alt="Spectra and Helmholtz decomposition for ${esc(n.label)}" loading="lazy"><figcaption>Subtidal spectra; grey band below the smoothing scale is not fitted.</figcaption></figure>
+          <figure><img src="${n.figures.footprint}" alt="Data availability and mean current for ${esc(n.label)}" loading="lazy"><figcaption>Footprint: data availability and monthly mean current.</figcaption></figure>
+        </div></div>`;
+    }
+    document.getElementById('ncei').innerHTML = html;
+  }
+
+  // ── GISTDA seasonal ──
+  const G = A.gistda;
+  if (G) {
+    const used = G.months.filter(m => m.used).length;
+    let html = `<h2>GISTDA HF radar — upper Gulf of Thailand, Feb 2025 – Jul 2026</h2>
+      <p class="note">${G.months.length} months, ${used} used; 2 km native grid; segments ${G.segment_km} km; fitted wavelengths
+      ${G.fit_wavelengths_km.join(', ')} km. The footprint changed in Nov 2025 (configurations A and B).</p>
+      <div class="card"><div class="scroll"><table>
+        <tr><th>Group</th><th>Months</th><th>Subtidal share</th><th>Rotational KE [cm²/s²]</th><th>D<sub>ψ</sub> slope (95 % CI)</th><th>Rotational share</th></tr>
+        ${G.groups.map(g => `<tr><td>${esc(g.label)}</td><td class="num">${g.n}</td><td class="num">${pct(g.subtidal)}</td>
+          <td class="num">${g.energy_cm2s2[0].toFixed(1)} (${g.energy_cm2s2[1].toFixed(1)}…${g.energy_cm2s2[2].toFixed(1)})</td>
+          <td class="num">${f2(g.slope_psi[0])} (${f2(g.slope_psi[1])}…${f2(g.slope_psi[2])})</td>
+          <td class="num">${g.rot_share[0] > 1 ? '>1 ⚠ anisotropic' : g.rot_share[0].toFixed(2)}</td></tr>`).join('')}
+      </table></div>
+      ${G.diff ? `<p class="note">Wet ÷ dry rotational KE ×${G.diff.energy_ratio[1].toFixed(2)} (95 % CI ×${G.diff.energy_ratio[0].toFixed(2)}…×${G.diff.energy_ratio[2].toFixed(2)});
+        wet − dry slope ${f2(G.diff.slope[1])} (${f2(G.diff.slope[0])}…${f2(G.diff.slope[2])}).</p>` : ''}
+      <div class="grid2">
+        <figure><img src="${G.figures.seasonal}" alt="GISTDA seasonal rotational and divergent spectra" loading="lazy"><figcaption>Seasonal mean spectra with 95 % bootstrap bands.</figcaption></figure>
+        <figure><img src="${G.figures.monthly}" alt="GISTDA monthly diagnostics" loading="lazy"><figcaption>Monthly slopes, rotational share and subtidal fraction.</figcaption></figure>
+      </div></div>`;
+    document.getElementById('gistda').innerHTML = html;
+  }
+})();
+</script>
+</body>
+</html>

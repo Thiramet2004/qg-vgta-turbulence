@@ -1,0 +1,7 @@
+# Intermediate analysis arrays (regenerate with tools/process_all_hfr.py)
+analysis/npz/
+# Local backups and system files
+.backup_before_light/
+.DS_Store
+__pycache__/
+*.pyc
