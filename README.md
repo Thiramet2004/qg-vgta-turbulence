@@ -23,6 +23,12 @@ main.js        Leaflet map, WebGL2 context, ping-pong FBOs, unified clock + sub-
   the page uses Esri's keyless *World Dark Gray* canvas, so you never see watermarked tiles.
   A key in a public repository is visible to everyone, so restrict it to your Pages domain in the
   CARTO dashboard.
+* **Theme and colour maps.** The default is a light basemap (Esri *World Light Gray*) with
+  [cmocean](https://matplotlib.org/cmocean/) colour maps (Thyng et al. 2016, *Oceanography* 29(3)),
+  one per quantity: `curl` for relative and potential vorticity, `balance` for streamfunction,
+  `diff` for VGTA, `speed` for current speed and `deep` for the Rossby radius. They are
+  perceptually uniform and colour-blind safe. `?basemap=dark` restores the dark theme and its
+  original colour maps.
 * URL options: `?nx=512|1024|1536` sets the grid resolution (default 1024 × 444, ≈ 39 km cells).
   `?spinup=60` integrates 60 model days before the first frame, so the page opens on an
   equilibrated field.

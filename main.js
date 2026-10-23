@@ -66,33 +66,38 @@
   const ldKm = latDeg => KM_PER_CELL / Math.sqrt(invLd2(latDeg * DEG));
 
   // ───────────────────────── colour maps & display fields ─────────────────────────
-  // Dark basemap: colour maps fade to near-black at zero. Light basemap: they fade to near-white,
-  // so weak values blend into the light-grey ocean instead of veiling it.
-  const DIVERGING = LIGHT ? [
-    [0.02, 0.19, 0.38], [0.13, 0.40, 0.67], [0.26, 0.58, 0.77], [0.57, 0.77, 0.87], [0.97, 0.97, 0.97],
-    [0.96, 0.65, 0.51], [0.84, 0.38, 0.30], [0.70, 0.09, 0.17], [0.40, 0.00, 0.12],
-  ] : [
+  // Light basemap (default): cmocean colour maps (Thyng et al. 2016, Oceanography 29(3)), one per
+  // physical quantity, sampled at 9 stops from cmocean 3.0.3. They are perceptually uniform and
+  // colour-blind safe; diverging maps are near-white at zero, so weak values blend into the ocean.
+  const CMOCEAN = {
+    curl:    [[0.082, 0.115, 0.265], [0.105, 0.351, 0.408], [0.175, 0.582, 0.500], [0.641, 0.761, 0.638], [0.993, 0.962, 0.956], [0.886, 0.651, 0.559], [0.763, 0.346, 0.380], [0.516, 0.123, 0.375], [0.203, 0.051, 0.209]],
+    balance: [[0.093, 0.111, 0.262], [0.145, 0.283, 0.689], [0.221, 0.532, 0.728], [0.594, 0.728, 0.773], [0.945, 0.927, 0.923], [0.843, 0.634, 0.564], [0.750, 0.342, 0.228], [0.554, 0.061, 0.161], [0.236, 0.035, 0.069]],
+    diff:    [[0.031, 0.137, 0.250], [0.193, 0.345, 0.445], [0.456, 0.536, 0.594], [0.724, 0.749, 0.773], [0.963, 0.945, 0.941], [0.758, 0.726, 0.653], [0.552, 0.503, 0.358], [0.340, 0.311, 0.127], [0.110, 0.134, 0.027]],
+    speed:   [[1.000, 0.991, 0.804], [0.913, 0.846, 0.535], [0.789, 0.730, 0.269], [0.596, 0.648, 0.069], [0.373, 0.571, 0.048], [0.152, 0.482, 0.138], [0.044, 0.372, 0.175], [0.093, 0.253, 0.150], [0.091, 0.137, 0.073]],
+    deep:    [[0.993, 0.994, 0.800], [0.734, 0.902, 0.676], [0.470, 0.806, 0.639], [0.334, 0.684, 0.641], [0.283, 0.556, 0.619], [0.247, 0.432, 0.591], [0.252, 0.299, 0.545], [0.230, 0.192, 0.353], [0.156, 0.103, 0.173]],
+  };
+  // Dark basemap (?basemap=dark): the original maps, which fade to near-black at zero.
+  const DIVERGING = [
     [0.75, 0.93, 0.96], [0.33, 0.70, 0.90], [0.20, 0.42, 0.80], [0.13, 0.19, 0.42], [0.07, 0.07, 0.09],
     [0.42, 0.11, 0.18], [0.80, 0.25, 0.18], [0.96, 0.56, 0.25], [1.00, 0.89, 0.66],
   ];
-  const SEQUENTIAL = LIGHT ? [
-    [0.99, 0.99, 0.75], [0.99, 0.85, 0.46], [0.99, 0.70, 0.30], [0.99, 0.51, 0.24], [0.94, 0.30, 0.20],
-    [0.80, 0.11, 0.17], [0.60, 0.00, 0.20], [0.40, 0.00, 0.20], [0.20, 0.00, 0.15],
-  ] : [
+  const SEQUENTIAL = [
     [0.00, 0.00, 0.02], [0.10, 0.04, 0.25], [0.30, 0.05, 0.42], [0.51, 0.12, 0.42], [0.71, 0.21, 0.33],
     [0.87, 0.35, 0.20], [0.97, 0.55, 0.04], [0.98, 0.78, 0.15], [0.99, 1.00, 0.64],
   ];
   const vortUnit = v => v / T_UNIT * 1e6;
   const FIELDS = [
-    { name: 'Relative vorticity ζ (red = anticlockwise)', unit: '10⁻⁶ s⁻¹', base: 2e-2, div: true, phys: vortUnit },
-    { name: 'Streamfunction ψ', unit: '10⁴ m²/s', base: 0.5, div: true, phys: v => v * L_CELL * L_CELL / T_UNIT / 1e4 },
-    { name: 'Current speed |u|', unit: 'm/s', base: 0.06, div: false, phys: v => v * L_CELL / T_UNIT },
-    { name: 'Potential vorticity q', unit: '10⁻⁶ s⁻¹', base: 2.5e-2, div: true, phys: vortUnit },
-    { name: 'VGTA a_z (Sun + Moon)', unit: 'µm/s²', base: 1.6, div: true, phys: v => v },
-    { name: 'Rossby radius L_d(φ)', unit: 'km', base: 600, div: false, phys: v => v },
+    { name: 'Relative vorticity ζ (positive = anticlockwise)', unit: '10⁻⁶ s⁻¹', base: 2e-2, div: true, cm: 'curl', phys: vortUnit },
+    { name: 'Streamfunction ψ', unit: '10⁴ m²/s', base: 0.5, div: true, cm: 'balance', phys: v => v * L_CELL * L_CELL / T_UNIT / 1e4 },
+    { name: 'Current speed |u|', unit: 'm/s', base: 0.06, div: false, cm: 'speed', phys: v => v * L_CELL / T_UNIT },
+    { name: 'Potential vorticity q', unit: '10⁻⁶ s⁻¹', base: 2.5e-2, div: true, cm: 'curl', phys: vortUnit },
+    { name: 'VGTA a_z (Sun + Moon)', unit: 'µm/s²', base: 1.6, div: true, cm: 'diff', phys: v => v },
+    { name: 'Rossby radius L_d(φ)', unit: 'km', base: 600, div: false, cm: 'deep', phys: v => v },
   ];
   const flat = pal => new Float32Array(pal.flat());
-  const CMAP = { div: flat(DIVERGING), seq: flat(SEQUENTIAL) };
+  // Palette for a field: its cmocean map on the light basemap, the original pair on the dark one.
+  const paletteFor = F => LIGHT ? CMOCEAN[F.cm] : (F.div ? DIVERGING : SEQUENTIAL);
+  const CMAP = Object.fromEntries(FIELDS.map((F, i) => [i, flat(paletteFor(F))]));
 
   // ───────────────────────── map ─────────────────────────
   const map = L.map('map', {
@@ -505,7 +510,7 @@
       u_canvas: [canvas.width, canvas.height], u_pxRatio: pxRatio,
       u_p0: [p0.x, p0.y], u_world: map.options.crs.scale(map.getZoom()),
       u_field: state.field, u_range: F.base * Math.pow(10, state.colorLog), u_alpha: 0.9,
-      u_diverging: F.div, u_contours: state.contours, u_cmap: F.div ? CMAP.div : CMAP.seq,
+      u_diverging: F.div, u_contours: state.contours, u_cmap: CMAP[state.field],
       u_moon1: bodyVec(bodies.moon), u_sun1: bodyVec(bodies.sun),
       u_k3: [0, 0, bodies.moon.k3, bodies.sun.k3], u_kmPerCell: KM_PER_CELL,
       u_night: state.night ? (LIGHT ? 0.35 : 0.55) : 0, u_light: LIGHT,
@@ -1138,7 +1143,7 @@
   function updateLegend() {
     const F = FIELDS[state.field];
     const r = F.base * Math.pow(10, state.colorLog);
-    const pal = F.div ? DIVERGING : SEQUENTIAL;
+    const pal = paletteFor(F);
     const stops = pal.map((c, i) => `rgb(${c.map(x => Math.round(x * 255)).join(',')}) ${(i / 8 * 100).toFixed(1)}%`);
     $('legend-bar').style.background = `linear-gradient(to right, ${stops.join(', ')})`;
     $('legend-title').textContent = F.name + ' [' + F.unit + ']';
